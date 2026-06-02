@@ -6,8 +6,6 @@
 
 ## 📸 效果预览
 
-![首屏效果](demo/screenshot-hero.png)
-
 ![完整报告](demo/screenshot-full.png)
 
 ---
