@@ -174,10 +174,42 @@ General rule: **when in doubt, increase grid margins and rotate labels.** Never 
 </html>
 ```
 
-**How to get ECharts inline:**
-1. Read ECharts from a local installation if available: `node_modules/echarts/dist/echarts.min.js`
-2. Or use the Bash tool to download it: `curl -s https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js`
-3. Embed the full JS source as a `<script>` block
+**How to get ECharts inline (CRITICAL — do NOT use PowerShell string replacement):**
+
+PowerShell's string interpolation (`$var` expansion) and regex-based `-replace` will CORRUPT the ECharts JavaScript source (~1MB of minified code contains `$` characters that trigger dollar-variable expansion and regex syntax errors). **Never use PowerShell to splice ECharts into HTML.**
+
+Reliable approach — two-phase assembly:
+
+**Phase A: Write the HTML skeleton with a placeholder**
+Use the **Write** tool to write the full HTML body (CSS, cards, tables, chart `<div>`s, and all chart init JS). Where the ECharts library itself belongs, put a unique placeholder token:
+
+```
+__ECHARTS_LIBRARY_GOES_HERE__
+```
+
+Do NOT include any ECharts library code in this Write call — just the placeholder string.
+
+**Phase B: Replace the placeholder with the real ECharts source**
+Choose one of these reliable methods:
+
+| Method | Command |
+|--------|---------|
+| **Node.js (preferred)** | Write a one-shot script that reads both files and splices them with `String.replace()`. JavaScript treats all content as opaque strings — no interpolation, no regex syntax clashes. |
+| **Python** | Same pattern: `html.replace('__ECHARTS_LIBRARY_GOES_HERE__', echarts_js)` |
+| **Bash** | `sed` with a unique delimiter — but test on a small file first |
+
+Node.js template (save to `_splice.js`, run with `node _splice.js`, then remove):
+```js
+const fs = require('fs');
+const html = fs.readFileSync('report.html', 'utf8');
+const echarts = fs.readFileSync('echarts.min.js', 'utf8');
+fs.writeFileSync('report.html', html.replace('__ECHARTS_LIBRARY_GOES_HERE__', echarts), 'utf8');
+```
+
+**Phase C: Verify and clean up**
+- Confirm the output file has exactly **2** `<script>` tags (one ECharts library, one chart init code)
+- Confirm the placeholder token **NO LONGER** appears in the output
+- Delete the intermediate files (`_splice.js`, `echarts.min.js`)
 
 **Output file:** Save as `report.html` in the same directory as the input files, or where the user specifies.
 
@@ -208,6 +240,8 @@ Missing: "未提取到该信息"
 | X-axis labels overlapping each other | Set `axisLabel.rotate: 45` + `interval: 0` when > 4 points or labels > 4 chars |
 | Data labels on bars overlapping | Hide labels (`label.show: false`) for dense charts (> 6 bars); use tooltip instead |
 | Grid too tight, labels cut off | Use `grid: {bottom: 70, left: 70, right: 30, top: 40}` as minimum margins |
+| Using PowerShell `-replace` or here-string to splice ECharts inline | Use **Node.js or Python** for the placeholder-replace step. See "How to get ECharts inline" above for the exact two-phase process. PowerShell dollar-variable expansion CORRUPTS JavaScript containing `$` characters. |
+| Writing the entire 1MB+ HTML in one tool call (Write/heredoc hangs or corrupts) | Split work into Phase A (Write HTML skeleton with placeholder), Phase B (Node.js/Python splice), Phase C (verify and clean up). |
 
 ## Example Invocation
 
