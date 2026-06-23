@@ -70,6 +70,7 @@ The HTML report for two-file mode has a **main body + appendix layout**:
 **Main Body:**
 
 **Card 1 — Benchmark Results** (from benchmark file):
+- **章节结论区块**（`class="section-summary"`，卡片正文最开头）：一句话概括本次 benchmark 最重要的数字结论，例如"方案C的QPS比方案A高5.5%，avg延迟降低5.3%，主要增益来自concat步骤从15ms→3.4ms"
 - Experiment name as card title
 - Experiment config as a compact summary table
 - Comparison group overview table (group name, script, method)
@@ -84,6 +85,7 @@ The HTML report for two-file mode has a **main body + appendix layout**:
 - Conclusion text
 
 **Card 2 — Combined Summary**:
+- **章节结论区块**（`class="section-summary"`，卡片正文最开头）：直接给出跨文件的核心结论，例如"向量化推理 + concat优化合计贡献了XX%的性能提升，代码改动集中在YY处"
 - Synthesize benchmark conclusions with code analysis findings
 - Key takeaway: quantitative result (e.g., "QPS +5.5%, concat 4.4x faster") + root cause (which code change enabled it)
 - Brief mention of the optimization approach at a high level (1-2 sentences), but **do NOT include detailed code blocks or line-by-line analysis here**
@@ -93,6 +95,7 @@ The HTML report for two-file mode has a **main body + appendix layout**:
 **CRITICAL: ALL detailed code analysis content MUST be placed in the appendix, NOT in the main body cards.** The appendix is the last section of the report, after all main body cards. The only exception is when the user explicitly requests code analysis to appear inline in the main body.
 
 The appendix contains the full code analysis from the analysis file:
+- **附录结论区块**（`class="section-summary"`，附录正文最开头）：一句话说明附录的核心优化手段，例如"本附录详细说明3项代码优化，合计贡献约XX%加速：(1)... (2)... (3)..."
 - Analysis title (as appendix heading)
 - Overview/summary
 - Each `##` section rendered as a subsection with heading
@@ -145,6 +148,54 @@ Cards:   1. Benchmark Results (tables + ECharts bar charts)
 Charts:  QPS bar chart + Latency grouped bar + Time breakdown bar
 Data:    Extracted from benchmark comparison group average rows
 Code:    All code blocks from analysis file preserved exactly
+```
+
+## HTML 总结性结论准则（MANDATORY）
+
+所有生成的 HTML 报告必须遵循**结论前置**原则：
+
+### 1. HTML 开头：全局核心结论
+
+紧跟页面标题/导航栏之后，**必须**放置一个"核心结论摘要"区块。读者在看任何数据或图表之前，就能直接知道"这份报告最重要的发现是什么"。
+
+### 2. 每个章节/卡片开头：章节结论
+
+每个主要章节（卡片正文、附录分节等）都必须以一段简洁的结论性文字**开头**，先告诉读者"这一节的结论是什么"，然后再展开数据、图表和详情。
+
+### 结论写法三要求
+
+| 要求 | 说明 | ❌ 反例 | ✅ 正例 |
+|------|------|--------|--------|
+| **清晰** | 一句话能说清楚就不用两句话 | "从实验中我们可以观察到一些有趣的现象" | "方案C的QPS比方案A高5.5%" |
+| **直接** | 用数字和结论，不用模糊描述 | "X和Y之间存在一定差异" | "X比Y快23%，主要来自concat耗时从15ms降至3.4ms" |
+| **易懂** | 避免堆砌术语，非专业读者也能看懂重点 | "向量化batch推理降低了latency tail" | "批量处理推理请求，让P99延迟从144ms降至136ms" |
+
+### 视觉样式要求
+
+全局结论区块和章节结论区块必须使用**突出的视觉样式**，与数据/图表内容明显区分：
+
+```css
+/* 全局核心结论区块 */
+.global-summary {
+  background: #e8f4fd;
+  border-left: 5px solid #4a90d9;
+  border-radius: 6px;
+  padding: 16px 24px;
+  margin: 20px 0 28px 0;
+  font-size: 17px;
+  line-height: 1.8;
+}
+
+/* 章节/卡片内的结论区块 */
+.section-summary {
+  background: #f0f7ee;
+  border-left: 4px solid #52a652;
+  border-radius: 4px;
+  padding: 12px 18px;
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  line-height: 1.7;
+}
 ```
 
 ## Core Workflow
@@ -360,11 +411,19 @@ Text content:
   </style>
 </head>
 <body>
+  <!-- ① 全局核心结论区块（MANDATORY — 必须在任何数据/图表之前） -->
+  <!-- <div class="global-summary">
+    核心结论：一句话说清楚整份报告最重要的发现。
+    例："共分析 N 个实验，方案X在QPS和延迟均优于其他方案，主要增益来自..."
+  </div> -->
+
   <!-- Summary bar: N experiments, M charts -->
 
   <!-- Card grid: one card per experiment -->
   <!-- Each card:
     - Header: experiment name (20px) + source filename
+    - ② 章节结论区块（MANDATORY — 在数据/图表之前，class="section-summary"）
+      例："本实验结论：批量推理将平均延迟降低 5.6%，P99 从 144ms → 136ms"
     - Results section: text (17px) + optional table (16px)
     - Conclusion section: distinct background color, 17px font
     - ECharts chart div: min-height 400px (if data file associated)
@@ -473,6 +532,9 @@ Code:    All code blocks from analysis file preserved exactly, placed in appendi
 | Using multi-series grouped/stacked bars to compare groups on different metrics | One chart = one metric = one comparison question. Split into per-metric charts (e.g., separate P50 chart, P99 chart) each with one bar per group. Multi-series bar charts obscure the comparison between groups. |
 | Table font size below 17px | All table cell text must be ≥ 17px. "Tight" layouts with smaller fonts are unreadable. |
 | Placing detailed code analysis (code blocks, diffs, breakdowns) in the main body | Code analysis is reference material — place it in the 附录 (appendix) at the end of the report. Only exception: user explicitly requests inline code analysis. Main body has: data + charts + conclusions. |
+| HTML 开头没有全局核心结论区块 | 紧跟标题之后必须放置 `class="global-summary"` 区块，直接陈述整份报告最重要的发现，读者无需翻阅数据即可知道结论 |
+| 章节/卡片开头没有结论先行 | 每个卡片/章节正文开头必须放置 `class="section-summary"` 区块，先给结论再展示数据图表。不能把结论藏在图表和数据之后 |
+| 结论写得模糊笼统（"存在一定差异"、"性能有所提升"） | 结论必须清晰直接：用具体数字（"快23%"、"从144ms降至136ms"），指明哪个方案优/劣，以及主要原因 |
 
 ## Example Invocation
 
